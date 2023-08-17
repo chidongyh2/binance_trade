@@ -6,6 +6,9 @@ import datetime
 import locale
 import os
 import json
+import binance_api
+from apscheduler.schedulers.background import BackgroundScheduler
+import requests
 
 load_dotenv()
 
@@ -13,6 +16,15 @@ api_key = os.getenv("MORALIS_API_KEY")
 
 locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 app = Flask(__name__)
+
+
+@app.route("/new_coin_listing", methods=["GET"])
+def binanceApi():
+
+    last_coin = binance_api.getLatestCoin()
+    pair_usdt = binance_api.getLatestCoinUSDT()
+    pair_busd = binance_api.getLatestCoinBUSD()
+    return { "last_coin": last_coin, "pair_busd": pair_busd,  "pair_usdt": pair_usdt }
 
 
 @app.route("/getPrice", methods=["GET"])
@@ -31,7 +43,6 @@ def prices():
     )
 
     return result
-
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -59,5 +70,19 @@ def webhook():
     return "ok"
 
 
+def scan_new_token_and_buy():
+    print('running')
+    url = f"http://localhost:5002/new_coin_listing"
+    listPair = requests.get(url)
+    print('running', listPair.json())
+    if listPair is not None:
+        # do buy
+        return
+    
+scheduler = BackgroundScheduler()
+scheduler.add_job(func=scan_new_token_and_buy, trigger="interval", seconds=30)
+scheduler.start()
+
 if __name__ == "__main__":
     app.run(port=5002, debug=True)
+
